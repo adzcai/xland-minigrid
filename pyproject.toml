@@ -36,7 +36,7 @@ dependencies = [
     "jax>=0.4.27",
     "jaxlib>=0.4.27",
     "flax>=0.8.0",
-    "rich>=13.4.2",
+    "rich<12.0",
     "tqdm>=4.67.1",
     "chex>=0.1.85",
     "imageio>=2.31.2",
