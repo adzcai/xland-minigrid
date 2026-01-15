@@ -143,7 +143,7 @@ class GoalObservationWrapper(Wrapper):
         return self.__extend_obs(timestep)
 
 
-class PrevActionWrapper(Wrapper[EnvParamsT, tuple[EnvCarryT, Array]]):
+class PrevActionWrapper(Wrapper[EnvParamsT, tuple[EnvCarryT, jax.Array]]):
     """Put the previous action into the observation."""
 
     def observation_shape(self, params) -> dict[str, tuple[int, ...]]:
