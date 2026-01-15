@@ -2,7 +2,7 @@
 name = "xminigrid"
 description = "JAX-accelerated meta-reinforcement learning environments inspired by XLand and MiniGrid"
 readme = "README.md"
-requires-python =">=3.9"
+requires-python =">=3.8"
 license = {file = "LICENSE"}
 authors = [
   {name = "Alexander Nikulin", email = "hsehowuhh@gmail.com"},
