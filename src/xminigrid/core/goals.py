@@ -6,6 +6,7 @@ from typing import Union
 import jax
 import jax.numpy as jnp
 from flax import struct
+from jaxtyping import Array
 
 from ..types import AgentState, GridState
 from .grid import equal, get_neighbouring_tiles, pad_along_axis
@@ -15,8 +16,8 @@ NUM_GOALS = 15
 
 
 def check_goal(
-    encoding: jax.Array, grid: GridState, agent: AgentState, action: Union[int, jax.Array], position: jax.Array
-) -> jax.Array:
+    encoding: Array, grid: GridState, agent: AgentState, action: Union[int, Array], position: Array
+) -> Array:
     check = jax.lax.switch(
         encoding[0],
         (
@@ -46,15 +47,15 @@ def check_goal(
 class BaseGoal(struct.PyTreeNode):
     @abc.abstractmethod
     def __call__(
-        self, grid: GridState, agent: AgentState, action: Union[int, jax.Array], position: jax.Array
-    ) -> jax.Array: ...
+        self, grid: GridState, agent: AgentState, action: Union[int, Array], position: Array
+    ) -> Array: ...
 
     @classmethod
     @abc.abstractmethod
-    def decode(cls, encoding: jax.Array) -> BaseGoal: ...
+    def decode(cls, encoding: Array) -> BaseGoal: ...
 
     @abc.abstractmethod
-    def encode(self) -> jax.Array: ...
+    def encode(self) -> Array: ...
 
 
 class EmptyGoal(BaseGoal):
@@ -70,7 +71,7 @@ class EmptyGoal(BaseGoal):
 
 
 class AgentHoldGoal(BaseGoal):
-    tile: jax.Array
+    tile: Array
 
     def __call__(self, grid, agent, action, position):
         check = jax.lax.select(jnp.equal(action, 3), equal(agent.pocket, self.tile), jnp.asarray(False))
@@ -86,7 +87,7 @@ class AgentHoldGoal(BaseGoal):
 
 
 class AgentOnTileGoal(BaseGoal):
-    tile: jax.Array
+    tile: Array
 
     def __call__(self, grid, agent, action, position):
         check = jax.lax.select(
@@ -104,7 +105,7 @@ class AgentOnTileGoal(BaseGoal):
 
 
 class AgentNearGoal(BaseGoal):
-    tile: jax.Array
+    tile: Array
 
     def __call__(self, grid, agent, action, position):
         def _check_fn():
@@ -126,8 +127,8 @@ class AgentNearGoal(BaseGoal):
 
 
 class TileNearGoal(BaseGoal):
-    tile_a: jax.Array
-    tile_b: jax.Array
+    tile_a: Array
+    tile_b: Array
 
     def __call__(self, grid, agent, action, position):
         tile_a = self.tile_a
@@ -161,8 +162,8 @@ class TileNearGoal(BaseGoal):
 
 
 class TileOnPositionGoal(BaseGoal):
-    tile: jax.Array
-    position: jax.Array
+    tile: Array
+    position: Array
 
     def __call__(self, grid, agent, action, position):
         check = jnp.array_equal(grid[self.position[0], self.position[1]], self.tile)
@@ -179,7 +180,7 @@ class TileOnPositionGoal(BaseGoal):
 
 
 class AgentOnPositionGoal(BaseGoal):
-    position: jax.Array
+    position: Array
 
     def __call__(self, grid, agent, action, position):
         check = jnp.array_equal(agent.position, self.position)
@@ -195,8 +196,8 @@ class AgentOnPositionGoal(BaseGoal):
 
 
 class TileNearUpGoal(BaseGoal):
-    tile_a: jax.Array
-    tile_b: jax.Array
+    tile_a: Array
+    tile_b: Array
 
     def __call__(self, grid, agent, action, position):
         y, x = position
@@ -226,8 +227,8 @@ class TileNearUpGoal(BaseGoal):
 
 
 class TileNearRightGoal(BaseGoal):
-    tile_a: jax.Array
-    tile_b: jax.Array
+    tile_a: Array
+    tile_b: Array
 
     def __call__(self, grid, agent, action, position):
         y, x = position
@@ -258,8 +259,8 @@ class TileNearRightGoal(BaseGoal):
 
 
 class TileNearDownGoal(BaseGoal):
-    tile_a: jax.Array
-    tile_b: jax.Array
+    tile_a: Array
+    tile_b: Array
 
     def __call__(self, grid, agent, action, position):
         y, x = position
@@ -289,8 +290,8 @@ class TileNearDownGoal(BaseGoal):
 
 
 class TileNearLeftGoal(BaseGoal):
-    tile_a: jax.Array
-    tile_b: jax.Array
+    tile_a: Array
+    tile_b: Array
 
     def __call__(self, grid, agent, action, position):
         y, x = position
@@ -321,7 +322,7 @@ class TileNearLeftGoal(BaseGoal):
 
 
 class AgentNearUpGoal(BaseGoal):
-    tile: jax.Array
+    tile: Array
 
     def __call__(self, grid, agent, action, position):
         def _check_fn():
@@ -346,7 +347,7 @@ class AgentNearUpGoal(BaseGoal):
 
 
 class AgentNearRightGoal(BaseGoal):
-    tile: jax.Array
+    tile: Array
 
     def __call__(self, grid, agent, action, position):
         def _check_fn():
@@ -371,7 +372,7 @@ class AgentNearRightGoal(BaseGoal):
 
 
 class AgentNearDownGoal(BaseGoal):
-    tile: jax.Array
+    tile: Array
 
     def __call__(self, grid, agent, action, position):
         def _check_fn():
@@ -396,7 +397,7 @@ class AgentNearDownGoal(BaseGoal):
 
 
 class AgentNearLeftGoal(BaseGoal):
-    tile: jax.Array
+    tile: Array
 
     def __call__(self, grid, agent, action, position):
         def _check_fn():
