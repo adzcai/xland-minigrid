@@ -3,6 +3,11 @@ from __future__ import annotations
 from typing import Any, Union
 
 import jax
+import jax.numpy as jnp
+from jaxtyping import Array, Integer
+
+from xminigrid.core.goals import AgentOnTileGoal
+from xminigrid.core.grid import check_walkable
 
 from .environment import Environment, EnvParamsT
 from .types import EnvCarryT, IntOrArray, State, TimeStep
@@ -168,3 +173,51 @@ class RulesAndGoalsObservationWrapper(Wrapper):
         timestep = self._env.step(params, timestep, action)
         timestep = self.__extend_obs(timestep)
         return timestep
+
+
+class DistanceToGoalRewardWrapper(Wrapper):
+    """Potential-based reward shaping that encourages the agent to move closer to the goal."""
+
+    def __init__(self, env, scale: float = 0.25, normalize: bool = True):
+        super().__init__(env)
+        self.scale = scale
+        self.normalize = normalize
+
+    def _compute_distance(self, grid: Integer[Array, " h w c"], row: Integer[Array, ""], col: Integer[Array, ""]):
+        H, W, _ = grid.shape
+        coords = jnp.mgrid[:H, :W].reshape(2, -1)
+        walkable = jax.vmap(check_walkable, in_axes=(None, 1))(grid, coords).reshape(H, W)
+        dist = jnp.full((H, W), jnp.inf).at[row, col].set(0.0)
+
+        def step(dist, _):
+            dist = jax.tree.reduce(
+                jnp.minimum,
+                [jnp.roll(dist, a, axis) + 1 for a in (1, -1) for axis in (0, 1)],
+                dist,
+            )
+            dist = jnp.where(walkable, dist, jnp.inf)
+            dist = dist.at[row, col].set(0.0)
+            return dist, None
+
+        dist_matrix, _ = jax.lax.scan(step, dist, length=H * W)
+        return dist_matrix / (H * W if self.normalize else 1)
+
+    def _potential(self, state: State):
+        ar, ac = state.agent.position
+        return state.carry[ar, ac]
+
+    def reset(self, params: Any, key: Array) -> TimeStep:
+        timestep = self._env.reset(params, key)
+        state = timestep.state
+        tile = AgentOnTileGoal.decode(state.goal_encoding).tile
+        gr, gc = (state.grid == tile).all(axis=-1).nonzero(size=1)
+        grid = self._compute_distance(state.grid, gr, gc)
+        return timestep.replace(state=state.replace(carry=grid))
+
+    def step(self, params, timestep, action):
+        next_timestep = self._env.step(params, timestep, action)
+        phi_s = self._potential(timestep.state)
+        phi_s_next = self._potential(next_timestep.state)
+        shaping = self.scale * (next_timestep.discount * phi_s_next - phi_s)
+        new_reward = next_timestep.reward + shaping
+        return next_timestep.replace(reward=new_reward)
