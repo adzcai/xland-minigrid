@@ -139,7 +139,7 @@ class XLandEnvParams(EnvParams):
     # you can vmap on rulesets for multi-task/meta learning
     ruleset: RuleSet = struct.field(pytree_node=True, default=_empty_ruleset)
     # experimental (can not vmap on it)
-    grid_type: int = struct.field(pytree_node=False, default="1R")
+    grid_type: int = struct.field(pytree_node=False, default="R1")
 
 
 class XLandMiniGrid(Environment[XLandEnvParams, EnvCarry]):

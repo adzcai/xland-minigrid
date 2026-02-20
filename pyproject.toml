@@ -41,6 +41,7 @@ dependencies = [
     "chex>=0.1.85",
     "imageio>=2.31.2",
     "imageio-ffmpeg>=0.4.9",
+    "jaxtyping>=0.2.36",
 ]
 
 [project.optional-dependencies]
@@ -87,7 +88,7 @@ select = ["E", "F", "I001", "RUF100"]
 ignore = [
     "W191", "E111", "E114",
     "E117", "D206", "D300",
-    "Q000", "Q001", "Q002",
+    "F722", "Q000", "Q001", "Q002",
     "Q003", "COM812", "COM819",
     "ISC001", "ISC002", "F401"
 ]
