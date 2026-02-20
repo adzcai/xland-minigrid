@@ -4,6 +4,7 @@ from typing import Any, Union
 
 import jax
 import jax.numpy as jnp
+from flax import struct
 from jaxtyping import Array, Integer
 
 from xminigrid.core.goals import AgentOnTileGoal
@@ -175,6 +176,11 @@ class RulesAndGoalsObservationWrapper(Wrapper):
         return timestep
 
 
+class ShapedCarry(struct.PyTreeNode):
+    potential: Array
+    bonus: Array
+
+
 class DistanceToGoalRewardWrapper(Wrapper):
     """Potential-based reward shaping that encourages the agent to move closer to the goal.
 
@@ -211,16 +217,19 @@ class DistanceToGoalRewardWrapper(Wrapper):
 
         dist, _ = jax.lax.scan(step, dist, length=H * W)
         potential = -dist / (H * W if self.normalize else 1)
-        return timestep.replace(state=state.replace(carry=potential))
+        carry = ShapedCarry(potential=potential, bonus=jnp.asarray(0.0))
+        return timestep.replace(state=state.replace(carry=carry))
 
-    def _potential(self, state: State):
+    def _potential(self, state: State[ShapedCarry]):
         ar, ac = state.agent.position
-        return state.carry[ar, ac]
+        return state.carry.potential[ar, ac]
 
     def step(self, params, timestep, action):
         next_timestep = self._env.step(params, timestep, action)
         phi_s = self._potential(timestep.state)
         phi_s_next = self._potential(next_timestep.state)
         shaping = self.scale * (next_timestep.discount * phi_s_next - phi_s)
-        new_reward = next_timestep.reward + shaping
-        return next_timestep.replace(reward=new_reward)
+        carry = next_timestep.state.carry.replace(bonus=shaping)
+        return next_timestep.replace(
+            reward=next_timestep.reward + shaping, state=next_timestep.state.replace(carry=carry)
+        )
