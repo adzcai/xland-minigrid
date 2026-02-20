@@ -298,8 +298,10 @@ def train(config: TrainConfig):
     rng, env, env_params, init_hstate, train_state = make_states(config)
     # replicating args across devices
     rng = jax.random.split(rng, num=jax.local_device_count())
-    train_state = replicate(train_state, jax.local_devices())
-    init_hstate = replicate(init_hstate, jax.local_devices())
+    train_state, init_hstate = jax.tree.map(
+        lambda x: jnp.broadcast_to(x, (jax.local_devices(),) + x.shape) if isinstance(x, jax.Array) else x,
+        (train_state, init_hstate),
+    )
 
     print("Compiling...")
     t = time.time()
