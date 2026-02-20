@@ -176,18 +176,28 @@ class RulesAndGoalsObservationWrapper(Wrapper):
 
 
 class DistanceToGoalRewardWrapper(Wrapper):
-    """Potential-based reward shaping that encourages the agent to move closer to the goal."""
+    """Potential-based reward shaping that encourages the agent to move closer to the goal.
+
+    Environment must use AgentOnTileGoal.
+    """
 
     def __init__(self, env, scale: float = 0.25, normalize: bool = True):
         super().__init__(env)
         self.scale = scale
         self.normalize = normalize
 
-    def _compute_distance(self, grid: Integer[Array, " h w c"], row: Integer[Array, ""], col: Integer[Array, ""]):
-        H, W, _ = grid.shape
+    def reset(self, params: Any, key: Array) -> TimeStep:
+        timestep = self._env.reset(params, key)
+
+        # get goal location
+        state = timestep.state
+        goal_tile = AgentOnTileGoal.decode(state.goal_encoding).tile
+        goal_y, goal_x = (state.grid == goal_tile).all(axis=-1).nonzero(size=1)
+
+        H, W, _ = state.grid.shape
         coords = jnp.mgrid[:H, :W].reshape(2, -1)
-        walkable = jax.vmap(check_walkable, in_axes=(None, 1))(grid, coords).reshape(H, W)
-        dist = jnp.full((H, W), jnp.inf).at[row, col].set(0.0)
+        walkable = jax.vmap(check_walkable, in_axes=(None, 1))(state.grid, coords).reshape(H, W)
+        dist = jnp.full((H, W), jnp.inf).at[goal_y, goal_x].set(0.0)
 
         def step(dist, _):
             dist = jax.tree.reduce(
@@ -196,23 +206,16 @@ class DistanceToGoalRewardWrapper(Wrapper):
                 dist,
             )
             dist = jnp.where(walkable, dist, jnp.inf)
-            dist = dist.at[row, col].set(0.0)
+            dist = dist.at[goal_y, goal_x].set(0.0)
             return dist, None
 
-        dist_matrix, _ = jax.lax.scan(step, dist, length=H * W)
-        return dist_matrix / (H * W if self.normalize else 1)
+        dist, _ = jax.lax.scan(step, dist, length=H * W)
+        potential = -dist / (H * W if self.normalize else 1)
+        return timestep.replace(state=state.replace(carry=potential))
 
     def _potential(self, state: State):
         ar, ac = state.agent.position
         return state.carry[ar, ac]
-
-    def reset(self, params: Any, key: Array) -> TimeStep:
-        timestep = self._env.reset(params, key)
-        state = timestep.state
-        tile = AgentOnTileGoal.decode(state.goal_encoding).tile
-        gr, gc = (state.grid == tile).all(axis=-1).nonzero(size=1)
-        grid = self._compute_distance(state.grid, gr, gc)
-        return timestep.replace(state=state.replace(carry=grid))
 
     def step(self, params, timestep, action):
         next_timestep = self._env.step(params, timestep, action)
