@@ -19,7 +19,7 @@ from utils import Transition, calculate_gae, ppo_update_networks, rollout
 
 import xminigrid
 from xminigrid.environment import Environment, EnvParams
-from xminigrid.wrappers import DirectionObservationWrapper, GymAutoResetWrapper
+from xminigrid.wrappers import DirectionObservationWrapper, DistanceToGoalRewardWrapper, GymAutoResetWrapper
 
 # this will be default in new jax versions anyway
 jax.config.update("jax_threefry_partitionable", True)
@@ -76,6 +76,7 @@ def make_states(config: TrainConfig):
 
     # setup environment
     env, env_params = xminigrid.make(config.env_id)
+    env = DistanceToGoalRewardWrapper(env)
     env = GymAutoResetWrapper(env)
     env = DirectionObservationWrapper(env)
 
